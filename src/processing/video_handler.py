@@ -22,9 +22,9 @@ class VideoProcessor:
         self.total_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
         # === Configuración para la SALIDA comprimida ===
-        self.output_fps = 25.0  # Reducir FPS para compresión
-        self.output_width = 1280 # Reducir resolución a 720p
-        self.output_height = 720
+        self.output_fps = 25.0
+        self.output_width = 960 # 854 # 1280 # 1920
+        self.output_height = 540 # 480 # 720 # 1080
         self.output_size = (self.output_width, self.output_height)
         # === Fin Configuración para la SALIDA ===
 
@@ -89,10 +89,9 @@ class VideoProcessor:
             cv2.destroyAllWindows()
 
     def get_properties(self):
-        # Devolvemos las propiedades del video ORIGINAL, ya que se usan para
-        # el procesamiento y dibujo antes del redimensionamiento final al guardar.
         return {
-            "fps": self.input_fps,
+            "input_fps": self.input_fps,
+            "output_fps": self.output_fps, # Añadido para calcular el salto
             "width": self.input_width,
             "height": self.input_height,
             "total_frames": self.total_frames

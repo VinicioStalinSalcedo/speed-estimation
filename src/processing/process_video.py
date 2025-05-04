@@ -6,13 +6,13 @@ from processing.tracker import Tracker
 from processing.video_handler import VideoProcessor
 from utils.utils import is_inside_mask, get_lane_index, draw_lines, draw_detection, point_to_line_distance
 
-TIME_MATCH_TOLERANCE = 0.1
-MAX_DISTANCE_THRESHOLD = 20.0
+TIME_MATCH_TOLERANCE = 0.2
+MAX_DISTANCE_THRESHOLD = 30.0
 
 
 def find_gt_data(lane_id, time_cross, cars):
     gt_data = {}
-    filtered = list(filter(lambda car: 'laneIndex' in car and lane_id in car['laneIndex'], cars))
+    filtered = list(filter(lambda car: 'laneIndex' in car and lane_id in car['laneIndex'] and 'valid' in car and car['valid'], cars))
     filtered.sort(key=lambda car: abs(car['timeIntersectionLastShifted'] - time_cross))
     if len(filtered) > 0 and abs(filtered[0]['timeIntersectionLastShifted'] - time_cross) < TIME_MATCH_TOLERANCE:
         gt_data = filtered[0]
@@ -26,7 +26,6 @@ def process_video(session_recording):
     save_dir = os.path.join("results", f"{session_recording.session}_{session_recording.recording}")
     os.makedirs(save_dir, exist_ok=True)
     output_json_path = os.path.join(save_dir, "tracked_cars_data.json")
-    # Cambiar la extensión a .mp4 para que coincida con el códec 'mp4v'
     video_out_path = os.path.join(save_dir, "video_output.mp4")
 
     # === Cargar datos necesarios de la sesión ===
@@ -34,7 +33,7 @@ def process_video(session_recording):
     lane_lines = session_recording.lane_lines
     measurement_lines = session_recording.measurement_lines
     cars = session_recording.cars
-    gt_data = session_recording.gt_data
+    mask_bin = session_recording.mask_bin
 
     try:
         video_processor = VideoProcessor(
@@ -51,7 +50,17 @@ def process_video(session_recording):
 
     video_props = video_processor.get_properties()
     width, height = video_props["width"], video_props["height"]
-    fps = video_props["fps"]
+    input_fps = video_props["input_fps"] # FPS original para cálculos de tiempo
+    output_fps = video_props["output_fps"] # FPS deseado para salida
+
+    # === Calcular ratio para salto de fotogramas ===
+    if output_fps > 0 and input_fps > output_fps:
+        frame_skip_ratio = round(input_fps / output_fps)
+        print(f"   Saltando fotogramas: Escribiendo 1 de cada {frame_skip_ratio} fotogramas (Input: {input_fps:.2f} FPS, Output: {output_fps:.2f} FPS).")
+    else:
+        frame_skip_ratio = 1 # No saltar si output_fps >= input_fps o es 0
+        print(f"   No se saltarán fotogramas (Input: {input_fps:.2f} FPS, Output: {output_fps:.2f} FPS).")
+    # === Fin cálculo ratio ===
 
     # === Cargar Tracker (YOLO) ===
     tracker = Tracker(model_path="../models/yolo11s.pt")
@@ -67,8 +76,8 @@ def process_video(session_recording):
         if not ret:
             break
 
-        if frame_num > 1000:
-            break
+        # if frame_num > 1000:
+        #     break
 
         # i += 1
         # if i < 5000:
@@ -84,20 +93,25 @@ def process_video(session_recording):
         for track_id, class_id, (x1, y1, x2, y2) in detections:
             ref_x, ref_y = int(x1), int(y2)
 
-            # if is_inside_mask(ref_x, ref_y, mask_bin):
-            lane_id = get_lane_index((ref_x, ref_y, 1), lane_lines)
-            if lane_id is None:
-                continue
+            if is_inside_mask(ref_x, ref_y, mask_bin):
+                lane_id = get_lane_index((ref_x, ref_y, 1), lane_lines)
+                if lane_id is None:
+                    continue
 
-            draw_detection(frame, x1, y1, x2, y2, lane_id, track_id)
+                draw_detection(frame, x1, y1, x2, y2, lane_id, track_id)
 
-            if track_id not in tracks_info:
-                tracks_info[track_id] = {"lane_id": lane_id, "positions": []}
-            tracks_info[track_id]["positions"].append((frame_num, x1, y1, x2, y2))
+                if track_id not in tracks_info:
+                    tracks_info[track_id] = {"lane_id": lane_id, "positions": []}
+                tracks_info[track_id]["positions"].append((frame_num, x1, y1, x2, y2))
 
         if not video_processor.show_frame(frame):
             break
-        video_processor.write_frame(frame)
+
+        # === Escribir frame SOLO si cumple el ratio de salto ===
+        if frame_num % frame_skip_ratio == 0:
+            video_processor.write_frame(frame) # write_frame redimensiona internamente
+        # === Fin escritura selectiva ===
+
         frame_num += 1
 
     video_processor.release()
@@ -128,23 +142,22 @@ def process_video(session_recording):
                 closest_pos = (pos_x, pos_y)
 
         if closest_frame != -1 and min_dist < MAX_DISTANCE_THRESHOLD:
-            video_time_approx = closest_frame / fps
+            # Usamos el FPS ORIGINAL (input_fps) para calcular el tiempo correctamente
+            video_time_approx = closest_frame / input_fps
             gt_match = find_gt_data(lane_id, video_time_approx, cars)
             output_data['cars'].append({
                 'id': track_id,
+                'lane_id': lane_id,
                 'pos': positions_data,
+                'gt_id': gt_match.get('carId', None) or None,
                 'gt_speed': gt_match.get('speed', None) or None,
-                'cross_time_approx_s': video_time_approx,
-                'cross_frame_approx': closest_frame,
-                'min_distance_to_line': min_dist,
-                'closest_pos_to_line': closest_pos
+                'cross_time': video_time_approx,
+                'cross_frame': closest_frame,
+                'min_dist': min_dist,
+                'closest_pos': closest_pos
             })
         else:
-            # El coche nunca se acercó lo suficiente o no tenía posiciones
             ignored_tracks_count += 1
-            # Opcional: Imprimir un mensaje si quieres saber qué tracks se ignoran
-            # print(f"   Track {track_id} ignorado (distancia mínima: {min_dist:.2f} >= {MAX_DISTANCE_THRESHOLD} o sin puntos)")
-
 
     # === Guardar los resultados en formato JSON ===
     try:
@@ -153,7 +166,7 @@ def process_video(session_recording):
         print(f"\n✅ Datos procesados guardados en: {output_json_path}")
         num_cars_saved = len(output_data.get('cars', []))
         num_cars_with_gt = sum(1 for car in output_data.get('cars', []) if car.get('gt_speed') is not None)
-        num_cars_crossed_approx = len(output_data.get('cars', [])) # Todos los guardados tienen tiempo aproximado
+        num_cars_crossed_approx = len(output_data.get('cars', []))
         print(f"   Se guardaron datos para {num_cars_saved} coches (de {len(tracks_info)} tracks iniciales).")
         if ignored_tracks_count > 0:
             print(f"   Se ignoraron {ignored_tracks_count} tracks por no acercarse lo suficiente a la línea.")
