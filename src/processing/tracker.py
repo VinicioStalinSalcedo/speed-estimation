@@ -11,7 +11,11 @@ class Tracker:
         self.model = YOLO(model_path).to(device)
 
     def track(self, frame, class_ids=None):
-        results = self.model.track(frame, persist=True, verbose=False)[0]
+        try:
+            results = self.model.track(frame, persist=True, verbose=False)[0]
+        except Exception as e:
+            print(f"***!!! Error al ejecutar YOLO: {e} !!!***")
+            return []
 
         outputs = []
         if results.boxes.id is not None and results.boxes.cls is not None:
