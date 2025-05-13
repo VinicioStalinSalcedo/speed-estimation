@@ -39,12 +39,14 @@ class TrackingLSTM(pl.LightningModule):
         self.train_mse  = torchmetrics.MeanSquaredError()
         self.train_mae  = torchmetrics.MeanAbsoluteError()
         self.train_acc  = RelativeRegressionAccuracy()
+
         self.val_mse    = torchmetrics.MeanSquaredError()
         self.val_mae    = torchmetrics.MeanAbsoluteError()
         self.val_acc    = RelativeRegressionAccuracy()
-        self.test_mse     = torchmetrics.MeanSquaredError()
-        self.test_mae     = torchmetrics.MeanAbsoluteError()
-        self.test_acc = RelativeRegressionAccuracy()
+
+        self.test_mse   = torchmetrics.MeanSquaredError()
+        self.test_mae   = torchmetrics.MeanAbsoluteError()
+        self.test_acc   = RelativeRegressionAccuracy()
 
     def forward(self, x, lengths):
         # Empaquetar secuencias
@@ -57,15 +59,22 @@ class TrackingLSTM(pl.LightningModule):
         x, y, lengths = batch
         y_hat = self(x, lengths)
         loss  = self.loss_fn(y_hat, y)
+
         # Actualizar métricas
         getattr(self, f"{stage}_mse")(y_hat, y)
         getattr(self, f"{stage}_mae")(y_hat, y)
         getattr(self, f"{stage}_acc")(y_hat, y)
         # Log
-        self.log(f"{stage}_loss", loss, prog_bar=True)
-        self.log(f"{stage}_mse",  getattr(self, f"{stage}_mse"),  on_epoch=True)
-        self.log(f"{stage}_mae",  getattr(self, f"{stage}_mae"),  on_epoch=True)
-        self.log(f"{stage}_acc", getattr(self, f"{stage}_acc"), on_epoch=True)
+        if stage == 'test':
+            self.log(f"{stage}_loss", loss, prog_bar=True)
+            self.log(f"{stage}_mse",  getattr(self, f"{stage}_mse"), on_epoch=True, )
+            self.log(f"{stage}_mae",  getattr(self, f"{stage}_mae"), on_epoch=True, )
+            self.log(f"{stage}_acc",  getattr(self, f"{stage}_acc"), on_epoch=True, )
+        else:
+            self.log(f"{stage}_loss", loss, prog_bar=True)
+            self.log(f"{stage}_mse",  getattr(self, f"{stage}_mse"), on_step=False, on_epoch=True, prog_bar=False, logger=True)
+            self.log(f"{stage}_mae",  getattr(self, f"{stage}_mae"), on_step=False, on_epoch=True, prog_bar=False, logger=True)
+            self.log(f"{stage}_acc", getattr(self, f"{stage}_acc"), on_step=False, on_epoch=True, prog_bar=False, logger=True)
         return loss
 
     def training_step(self, batch, batch_idx):

@@ -1,6 +1,8 @@
-from pytorch_lightning import LightningDataModule
+import numpy as np
 import torch
-from torch.utils.data import DataLoader
+from pytorch_lightning import LightningDataModule
+from torch.utils.data import DataLoader, Dataset
+from sklearn.preprocessing import StandardScaler
 from torch.utils.data.dataset import random_split
 from dataset.tracking_dataset import TrackingDataset
 from torch.nn.utils.rnn import pad_sequence
@@ -13,21 +15,52 @@ def collate_fn_padding(batch):
     return padded, torch.stack(speeds), torch.tensor(lengths, dtype=torch.long)
 
 
+class ScaledDataset(Dataset):
+    def __init__(self, dataset: Dataset, scaler: StandardScaler):
+        self.dataset = dataset
+        self.scaler = scaler
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, idx):
+        features, speed, length = self.dataset[idx]
+        features_np = features.numpy()
+        features_scaled = torch.tensor(
+            self.scaler.transform(features_np), dtype=torch.float32
+        )
+        return features_scaled, speed, length
+
+
 class TrackingDataModule(LightningDataModule):
-    def __init__(self, data_list, batch_size, split_ratio, num_workers=4):
+    def __init__(self, data_list, batch_size, split_ratio, num_workers=4, scale=True):
         super().__init__()
         self.data_list = data_list
         self.batch_size = batch_size
         self.split_ratio = split_ratio
         self.num_workers = num_workers
+        self.scale = scale
+        self.scaler = None
 
     def setup(self, stage=None):
-        ds = TrackingDataset(self.data_list)
-        total = len(ds)
+        full_ds = TrackingDataset(self.data_list)
+        total = len(full_ds)
         train_n = int(total * self.split_ratio[0])
         val_n   = int(total * self.split_ratio[1])
         test_n  = total - train_n - val_n
-        self.train_ds, self.val_ds, self.test_ds = random_split(ds, [train_n, val_n, test_n])
+        train_ds, val_ds, test_ds = random_split(full_ds, [train_n, val_n, test_n])
+
+        if self.scale:
+            features_list = [x.numpy() for x, _, _ in train_ds]
+            all_features = np.concatenate(features_list, axis=0)
+            self.scaler = StandardScaler().fit(all_features)
+            train_ds = ScaledDataset(train_ds, self.scaler)
+            val_ds = ScaledDataset(val_ds, self.scaler)
+            test_ds = ScaledDataset(test_ds, self.scaler)
+
+        self.train_ds = train_ds
+        self.val_ds = val_ds
+        self.test_ds = test_ds
 
     def train_dataloader(self):
         return DataLoader(self.train_ds,

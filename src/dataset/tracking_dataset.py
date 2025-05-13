@@ -1,18 +1,18 @@
+import numpy as np
 import torch
 from torch.utils.data import Dataset
 
 
 class TrackingDataset(Dataset):
-    def __init__(self, data):
+    def __init__(self, data_list):
         self.samples = []
-        for d in data:
-            bboxes = [(x1, y1, x2, y2) for (fid, x1, y1, x2, y2) in d['pos']]
-            speed = d['gt_speed']
-            if bboxes and speed is not None and len(bboxes) >= 50:
-                self.samples.append((
-                    torch.tensor(bboxes, dtype=torch.float32),
-                    torch.tensor(speed, dtype=torch.float32),
-                    len(bboxes)))
+        for d in data_list:
+            features = d.get('features', [])
+            speed = d.get('speed', None)
+            length = len(features)
+            self.samples.append((torch.tensor(features, dtype=torch.float32),
+                                 torch.tensor(speed, dtype=torch.float32),
+                                 length))
 
     def __len__(self):
         return len(self.samples)
