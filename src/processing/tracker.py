@@ -56,15 +56,11 @@ class Tracker:
         return outputs
 
     def smooth_masks(self, results, kernel_size=20, blur_kernel_size=25, threshold_value=127):
-        # --- Inicio del código de suavizado de máscara ---
         if results.masks is not None and results.masks.data is not None:
             original_mask_tensor = results.masks.data  # Tensor de PyTorch (N, H, W), booleano
 
-            # Convertir a NumPy array y a tipo uint8 (0 o 255) para OpenCV
             mask_data_np_uint8 = original_mask_tensor.cpu().numpy().astype(np.uint8) * 255
 
-            # Parámetros para las operaciones morfológicas
-            # Usaremos el mismo tamaño de kernel para ambas, pero puedes variarlo
             kernel = np.ones((kernel_size, kernel_size), np.uint8)
 
             smoothed_masks_list_np_uint8 = []
@@ -88,4 +84,3 @@ class Tracker:
                 smoothed_masks_np_bool = smoothed_masks_np_uint8.astype(bool)
                 new_mask_tensor = torch.from_numpy(smoothed_masks_np_bool).to(original_mask_tensor.device)
                 results.masks.data = new_mask_tensor
-        # --- Fin del código de suavizado de máscara ---

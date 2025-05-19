@@ -5,7 +5,7 @@ from processing.process_instance import process_instance_video
 
 ALL_VIDEOS = [
     # ('session0', 'center'),
-    ('session0', 'left'),
+    # ('session0', 'left'),
     # ('session0', 'right'),
     # ('session1', 'center'),
     # ('session1', 'left'),

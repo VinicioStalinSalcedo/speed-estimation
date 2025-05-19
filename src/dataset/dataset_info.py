@@ -11,11 +11,11 @@ if platform.system() == "Windows":
 else:
     TRANS_PATH = lambda p: p
 
-DATASET_BASE_PATH = TRANS_PATH("/path/to/PF_DATASET/BrnoCompSpeed/dataset/")
-RESULTS_DIR = TRANS_PATH("/path/to/PF_DATASET/BrnoCompSpeed/results/")
+# DATASET_BASE_PATH = TRANS_PATH("/path/to/PF_DATASET/BrnoCompSpeed/dataset/")
+# RESULTS_DIR = TRANS_PATH("/path/to/PF_DATASET/BrnoCompSpeed/results/")
 
-# DATASET_BASE_PATH = TRANS_PATH("/mnt/DGX0Raid/databases/vsalcedop_dataset/2016-ITS-BrnoCompSpeed/dataset/")
-# RESULTS_DIR = TRANS_PATH("/mnt/DGX0Raid/databases/vsalcedop_dataset/2016-ITS-BrnoCompSpeed/results/")
+DATASET_BASE_PATH = TRANS_PATH("/mnt/DGX0Raid/databases/vsalcedop_dataset/2016-ITS-BrnoCompSpeed/dataset/")
+RESULTS_DIR = TRANS_PATH("/mnt/DGX0Raid/databases/vsalcedop_dataset/2016-ITS-BrnoCompSpeed/results/")
 
 DATASET_SESSIONS = {
     "session0": {

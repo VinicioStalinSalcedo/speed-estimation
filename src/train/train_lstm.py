@@ -9,14 +9,8 @@ from tqdm import tqdm
 
 class CustomProgressBar(TQDMProgressBar):
     def init_validation_tqdm(self) -> tqdm:
-        """
-        Sobrescribe este método para devolver una barra tqdm deshabilitada
-        para el bucle de validación.
-        """
         bar = super().init_validation_tqdm()
-        # Deshabilita la barra; no se mostrará ni actualizará.
-        # La barra de épocas y la de entrenamiento (si refresh_rate > 0) seguirán funcionando.
-        if bar is not None: # La barra podría no crearse si refresh_rate es 0 en la clase base
+        if bar is not None:
             bar.disable = True
         return bar
 
@@ -44,24 +38,25 @@ def train_lstm_pipeline(data_list=None, **config):
 
     # Callbacks y logger
     logger = CSVLogger("logs/", name=config.get('log_path', "tracking_lstm"))
-    checkpoint_cb = ModelCheckpoint(save_top_k=1, mode='min', monitor='val_loss')
-    earlystop_cb = EarlyStopping(monitor='val_loss', patience=config.get('patience', 7))
-    # tqdm_cb = TQDMProgressBar(leave=True)
-    custom_progress_bar_cb = CustomProgressBar()
+    callbacks = [
+        ModelCheckpoint(save_top_k=1, mode='min', monitor='val_loss'),
+        EarlyStopping(monitor='val_loss', patience=config.get('patience', 7))
+    ]
+    if config.get('progress_bar'):
+        callbacks.append(CustomProgressBar())
 
     trainer = Trainer(
         max_epochs=config.get('epochs', 200),
-        callbacks=[
-            checkpoint_cb,
-            earlystop_cb,
-            # tqdm_cb
-            custom_progress_bar_cb
-        ],
+        callbacks=callbacks,
         accelerator="auto",
         devices="auto",
         logger=logger,
         deterministic=False,
         log_every_n_steps=config.get('log_every_n_steps', 10),
+        enable_progress_bar=config.get('progress_bar', True),
+        enable_model_summary=config.get('model_summary', True)
     )
     trainer.fit(model, datamodule=data_module)
-    trainer.test(model, datamodule=data_module)
+    # trainer.test(model, datamodule=data_module)
+
+    return data_module, model, trainer, logger

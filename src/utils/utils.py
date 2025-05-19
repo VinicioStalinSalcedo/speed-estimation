@@ -58,6 +58,21 @@ def draw_detection(frame, x1, y1, x2, y2, lane_id, track_id):
     text_pos = (int(x1), int(y1) - 10)
     cv2.putText(frame, f"ID {track_id} - L{lane_id}", text_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
+def draw_instance(frame, rotated_rect):
+    # 5. Dibujar la información en el frame de visualización
+    # Obtener los 4 vértices del recuadro rotado para dibujarlo
+    box_points_np = cv2.boxPoints(rotated_rect)  # Numpy array de shape (4, 2)
+    # Convertir a enteros para cv2.drawContours
+    box_points_int = np.int0(box_points_np)
+
+    # Dibujar el contorno del recuadro rotado (ej. en verde brillante)
+    cv2.drawContours(frame, [box_points_int], 0, (255, 0, 255), 2)  # Color verde brillante
+
+def draw_bottom(frame, bottom):
+    # Dibujar el punto más bajo de la máscara (ej. círculo rojo)
+    if bottom[0] != -1.0:
+        cv2.circle(frame, (int(bottom[0]), int(bottom[1])), 5, (0, 0, 255), -1)
+
 def point_to_line_distance(p, l):
     return abs(np.dot(l, p / p[2])) / np.linalg.norm(l[0:2])
 
