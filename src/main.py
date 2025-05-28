@@ -22,7 +22,7 @@ ALL_VIDEOS = [
     # ('session5', 'center'),
     # ('session5', 'left'),
     # ('session5', 'right'),
-    # ('session6', 'center'),
+    ('session6', 'center'),
     # ('session6', 'left'),
     # ('session6', 'right'),
 ]

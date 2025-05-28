@@ -4,6 +4,7 @@ from torch.nn.utils.rnn import pack_padded_sequence
 import torchmetrics
 from torchmetrics import Metric
 import pytorch_lightning as pl
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 
 class RelativeRegressionAccuracy(Metric):
@@ -26,7 +27,7 @@ class RelativeRegressionAccuracy(Metric):
 
 class TrackingLSTM(pl.LightningModule):
     def __init__(self, input_size=4, hidden_size=50, num_layers=2,
-                 output_size=1, lr=1e-4, threshold=5.0, dropout=0.3):
+                 output_size=1, lr=1e-4, threshold=5.0, dropout=0.3, weight_decay=0.0):
         super().__init__()
         self.save_hyperparameters()
         self.lstm = nn.LSTM(input_size, hidden_size, num_layers,
@@ -92,4 +93,14 @@ class TrackingLSTM(pl.LightningModule):
         return y_hat, y
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.hparams.lr) # todo: check weight_decay=1e-5
+        optimizer = torch.optim.Adam(self.parameters(),
+                                     lr=self.hparams.lr,
+                                     weight_decay=self.hparams.weight_decay
+                                     )
+        scheduler = {
+            'scheduler': ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5),
+            'monitor': 'val_loss',
+            'interval': 'epoch',
+            'frequency': 1
+        }
+        return [optimizer], [scheduler]

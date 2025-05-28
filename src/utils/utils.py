@@ -52,11 +52,13 @@ def draw_detection(frame, x1, y1, x2, y2, lane_id, track_id):
     pt2 = (int(x2), int(y2))
 
     # Dibujar el rectángulo con coordenadas enteras
-    cv2.rectangle(frame, pt1, pt2, (0, 255, 0), 2)
+    color1 = (0, 255, 0)
+    cv2.rectangle(frame, pt1, pt2, color1, 2)
 
     # Asegurarse que la posición del texto también use coordenadas enteras si es necesario
-    text_pos = (int(x1), int(y1) - 10)
-    cv2.putText(frame, f"ID {track_id} - L{lane_id}", text_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+    text_pos = (int(x1), int(y1) - 15)
+    color2 = (0, 0, 255)
+    cv2.putText(frame, f"Vehiculo {track_id}, Carril: {lane_id}", text_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.8, color2, 2)
 
 def draw_instance(frame, rotated_rect):
     # 5. Dibujar la información en el frame de visualización

@@ -85,7 +85,7 @@ def process_instance_video(session_recording):
             output_path=video_out_path,
             fps=session_recording.fps,
             window_name=f"Tracking - {session_recording.session} {session_recording.recording}",
-            show_output=False,
+            show_output=True,
             save_output=False,
         )
     except IOError as e:

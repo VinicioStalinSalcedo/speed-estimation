@@ -1,5 +1,5 @@
 import yaml
-from pytorch_lightning import Trainer
+from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping, TQDMProgressBar
 from pytorch_lightning.loggers import CSVLogger
 from dataset.tracking_datamodule import TrackingDataModule
@@ -15,12 +15,12 @@ class CustomProgressBar(TQDMProgressBar):
         return bar
 
 
-def train_lstm_pipeline(data_list=None, **config):
-    if data_list is None:
-        data_list = []
+def train_lstm_pipeline(data_list, train_idx, val_idx, **config):
     # DataModule
     data_module = TrackingDataModule(
         data_list=data_list,
+        train_idx=train_idx,
+        val_idx=val_idx,
         batch_size=config.get('batch_size', 4),
         split_ratio=config.get('split_ratio', (0.8, 0.1, 0.1)),
         num_workers=config.get('num_workers', 4)
@@ -33,7 +33,8 @@ def train_lstm_pipeline(data_list=None, **config):
         num_layers=config.get('num_layers', 2),
         output_size=config.get('output_size', 1),
         lr=config.get('learning_rate', 1e-3),
-        dropout=config.get('dropout', 0.1)
+        dropout=config.get('dropout', 0.1),
+        weight_decay=config.get('weight_decay', 0.0)
     )
 
     # Callbacks y logger
@@ -46,7 +47,7 @@ def train_lstm_pipeline(data_list=None, **config):
         callbacks.append(CustomProgressBar())
 
     trainer = Trainer(
-        max_epochs=config.get('epochs', 200),
+        max_epochs=config.get('epochs', 100),
         callbacks=callbacks,
         accelerator="auto",
         devices="auto",
@@ -57,6 +58,8 @@ def train_lstm_pipeline(data_list=None, **config):
         enable_model_summary=config.get('model_summary', True)
     )
     trainer.fit(model, datamodule=data_module)
-    # trainer.test(model, datamodule=data_module)
+    val_metrics = trainer.callback_metrics
+    trainer.validate(model, datamodule=data_module)
+    test_metrics = trainer.callback_metrics
 
-    return data_module, model, trainer, logger
+    return data_module, model, trainer, logger, val_metrics, test_metrics

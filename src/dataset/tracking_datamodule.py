@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 from pytorch_lightning import LightningDataModule
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, Subset
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data.dataset import random_split
 from dataset.tracking_dataset import TrackingDataset
@@ -33,22 +33,29 @@ class ScaledDataset(Dataset):
 
 
 class TrackingDataModule(LightningDataModule):
-    def __init__(self, data_list, batch_size, split_ratio, num_workers=4, scale=True):
+    def __init__(self, data_list, batch_size, split_ratio, train_idx=None, val_idx=None, num_workers=4, scale=True):
         super().__init__()
         self.data_list = data_list
         self.batch_size = batch_size
         self.split_ratio = split_ratio
+        self.train_idx = train_idx
+        self.val_idx = val_idx
         self.num_workers = num_workers
         self.scale = scale
         self.scaler = None
 
     def setup(self, stage=None):
         full_ds = TrackingDataset(self.data_list)
-        total = len(full_ds)
-        train_n = int(total * self.split_ratio[0])
-        val_n   = int(total * self.split_ratio[1])
-        test_n  = total - train_n - val_n
-        train_ds, val_ds, test_ds = random_split(full_ds, [train_n, val_n, test_n])
+        if self.train_idx is not None and self.val_idx is not None:
+            train_ds = Subset(full_ds, self.train_idx)
+            val_ds = Subset(full_ds, self.val_idx)
+            test_ds = Subset(full_ds, [])
+        else:
+            total = len(full_ds)
+            train_n = int(total * self.split_ratio[0])
+            val_n   = int(total * self.split_ratio[1])
+            test_n  = total - train_n - val_n
+            train_ds, val_ds, test_ds = random_split(full_ds, [train_n, val_n, test_n])
 
         if self.scale:
             features_list = [x.numpy() for x, _, _ in train_ds]
@@ -66,19 +73,31 @@ class TrackingDataModule(LightningDataModule):
         return DataLoader(self.train_ds,
                           batch_size=self.batch_size,
                           shuffle=True,
+                          drop_last=True,
                           collate_fn=collate_fn_padding,
-                          num_workers=self.num_workers)
+                          num_workers=self.num_workers,
+                          persistent_workers=True,
+                          prefetch_factor=2,
+                          )
 
     def val_dataloader(self):
         return DataLoader(self.val_ds,
                           batch_size=self.batch_size,
                           shuffle=False,
+                          drop_last=True,
                           collate_fn=collate_fn_padding,
-                          num_workers=self.num_workers)
+                          num_workers=self.num_workers,
+                          persistent_workers=True,
+                          prefetch_factor=2,
+                          )
 
     def test_dataloader(self):
         return DataLoader(self.test_ds,
                           batch_size=self.batch_size,
                           shuffle=False,
+                          drop_last=True,
                           collate_fn=collate_fn_padding,
-                          num_workers=self.num_workers)
+                          num_workers=self.num_workers,
+                          persistent_workers=True,
+                          prefetch_factor=2,
+                          )

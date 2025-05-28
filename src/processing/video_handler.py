@@ -5,6 +5,15 @@ import numpy as np
 from processing.tracker import Tracker
 from utils.utils import is_inside_mask, get_lane_index, draw_lines, draw_detection, draw_instance, draw_bottom
 from ultralytics.utils.plotting import Annotator, colors
+# color_b = (102, 102, 255) # rosado durazno
+# color_b = (255, 153, 51) # celeste oscuro
+# color_b = (102, 255, 102) # verde claro
+# color_b = (102, 178, 255) # tomate claro
+
+bbox_color = (102, 255, 102)
+# mask_color = (255, 153, 51)
+mask_color = colors(3, True)
+text_color = (50, 50, 50)
 
 
 class VideoProcessor:
@@ -175,6 +184,7 @@ class VideoProcessor:
         # === Inicializar almacenamiento de trayectorias ===
         tracks_info = {}
         frame_num = 0
+        i = 0
 
         # === Bucle principal de procesamiento ===
         while True:
@@ -182,12 +192,24 @@ class VideoProcessor:
             if not ret:
                 break
 
-            annotator = Annotator(frame, line_width=2, )
+            i += 1
+            if i < 7550:
+                frame_num += 1
+                continue
+            if i == 7567:
+                # pass
+                cv2.imwrite("ims/brno_sample.png", frame)
+                break
+
+            annotator = Annotator(frame,
+                                  line_width=3,
+                                  font='ims/OpenSans-Regular.ttf', # no está funcionando la fuente
+                                  )
 
             detections = tracker.instance_track(frame, class_ids=[2])
 
-            cv2.polylines(frame, contours, isClosed=True, color=(255, 0, 0), thickness=2)
-            draw_lines(frame, lane_lines, self.input_width, color=(0, 255, 255))
+            # cv2.polylines(frame, contours, isClosed=True, color=(255, 0, 0), thickness=2)
+            # draw_lines(frame, lane_lines, self.input_width, color=(0, 255, 255))
             draw_lines(frame, measurement_lines, self.input_width, color=(255, 0, 255))
 
             for track_id, class_id, (x1, y1, x2, y2), mask_points in detections:
@@ -201,10 +223,11 @@ class VideoProcessor:
                     continue  # Skip this detection if calculation fails
 
                 bottom = mask_points[np.argmax(mask_points[:, 1])].tolist()
+                # bottom = [x1, y2]
                 # bottom = get_bottom_point_stable(mask_points, quantile=0.1)
                 # bottom = [float((x1 + x2) / 2.0), float(y2)]  # [center_x, bottom_y]
 
-                annotator.seg_bbox(mask=mask_points, mask_color=colors(track_id, True))
+                # annotator.seg_bbox(mask=mask_points, mask_color=colors(track_id, True), label=f'123')
 
                 if is_inside_mask(bottom[0], bottom[1], mask_bin):
                     lane_id = get_lane_index((bottom[0], bottom[1], 1), lane_lines)
@@ -217,9 +240,33 @@ class VideoProcessor:
                     frame_features = self.get_frame_features(x1, y1, x2, y2, rotated_rect, mask_points, frame_num, bottom)
                     tracks_info[track_id]["fdata"].append(frame_features)
 
-                    draw_detection(frame, x1, y1, x2, y2, lane_id, track_id)
-                    draw_instance(frame, rotated_rect)
+                    # annotator.box_label(box=(x1, y1, x2, y2),
+                    #                     label=f"Carril {lane_id}, ID {track_id}",
+                    #                     color=bbox_color,
+                    #                     txt_color=text_color)
+                    annotator.seg_bbox(mask=mask_points,
+                                       label=f"Carril {lane_id}, ID {track_id}",
+                                       mask_color=mask_color,
+                                       txt_color=text_color
+                                       )
+                    # draw_detection(frame, x1, y1, x2, y2, lane_id, track_id)
+                    # draw_instance(frame, rotated_rect)
                     draw_bottom(frame, bottom)
+
+            # if i == 167:
+            #     cv2.imwrite("ims/brno_info_road.png", frame)
+            #     break
+            # if i == 7086:
+            #     cv2.imwrite("ims/yolo_track.png", frame)
+            #     break
+            # if i == 208:
+            #     pass
+            #     cv2.imwrite('ims/yolo_bbox.png', frame)
+            #     cv2.imwrite('ims/yolo_mask.png', frame)
+            #     break
+            # if i == 208:
+            #     cv2.imwrite('ims/yolo_mask_cross.png', frame)
+            #     break
 
             if not self.show_frame(frame):
                 break
