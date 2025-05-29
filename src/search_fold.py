@@ -8,6 +8,8 @@ import random
 from pytorch_lightning import seed_everything
 from dataset.tracking_dataset import load_data_list
 from train.train_fold import train_fold
+from optuna.importance import get_param_importances
+import pandas as pd
 
 ALL_VIDEOS = [
     # ('session0', 'center'),
@@ -33,11 +35,13 @@ ALL_VIDEOS = [
     ('session6', 'right'),
 ]
 
+seed = 42
+
 # ── 1) Hold-out TEST ──────────────────────────────────────
 full_list = load_data_list(ALL_VIDEOS, results_folder='results_instance', feature_path='all_features')
 all_indices = np.arange(len(full_list))
 train_val_indices, test_indices = train_test_split(
-    all_indices, test_size=0.2, random_state=42, shuffle=True
+    all_indices, test_size=0.2, random_state=seed, shuffle=True
 )
 train_val_list = [full_list[i] for i in train_val_indices]
 test_list = [full_list[i] for i in test_indices]
@@ -46,17 +50,17 @@ input_size = len(train_val_list[0]['features'][0])
 
 def objective(trial):
     hparams = {
-        # 'hidden_size': trial.suggest_categorical('hidden_size', [32, 64, 128]),
-        # 'num_layers':  trial.suggest_int('num_layers', 1, 3),
-        # 'dropout':     trial.suggest_float('dropout', 0.0, 0.3),
-        # 'lr':          trial.suggest_loguniform('lr', 1e-4, 1e-2),
-        # 'weight_decay': trial.suggest_loguniform('weight_decay', 1e-6, 1e-4),
+        'hidden_size': trial.suggest_categorical('hidden_size', [32, 64, 128]),
+        'num_layers':  trial.suggest_int('num_layers', 1, 3),
+        'dropout':     trial.suggest_float('dropout', 0.0, 0.3),
+        'lr':          trial.suggest_loguniform('lr', 1e-4, 1e-2),
+        'weight_decay': trial.suggest_loguniform('weight_decay', 1e-6, 1e-4),
 
-        'hidden_size': trial.suggest_categorical('hidden_size', [64]),
-        'num_layers': trial.suggest_int('num_layers', 2, 2),
-        'dropout': trial.suggest_float('dropout', 0.0, 0.0),
-        'lr': trial.suggest_loguniform('lr', 1e-3, 1e-3),
-        'weight_decay': trial.suggest_loguniform('weight_decay', 1e-6, 1e-6),
+        # 'hidden_size': trial.suggest_categorical('hidden_size', [64]),
+        # 'num_layers': trial.suggest_int('num_layers', 2, 2),
+        # 'dropout': trial.suggest_float('dropout', 0.0, 0.0),
+        # 'lr': trial.suggest_loguniform('lr', 1e-3, 1e-3),
+        # 'weight_decay': trial.suggest_loguniform('weight_decay', 1e-6, 1e-6),
 
 
         # 'batch_size':  trial.suggest_categorical('batch_size', [4, 8]),
@@ -64,7 +68,7 @@ def objective(trial):
     }
 
     # K-Fold
-    kf = KFold(n_splits=5, shuffle=True, random_state=42)
+    kf = KFold(n_splits=5, shuffle=True, random_state=seed)
     losses = []
 
     # Directorio general de resultados del trial
@@ -114,20 +118,33 @@ def objective(trial):
 
 
 if __name__ == '__main__':
-    seed_everything(42)
+    seed_everything(seed)
     # torch.use_deterministic_algorithms(True)
     # torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = True  # Para mejorar el rendimiento en GPU
-    random.seed(42)
-    np.random.seed(42)
+    random.seed(seed)
+    np.random.seed(seed)
 
     study = optuna.create_study(direction='minimize',
-                                sampler=optuna.samplers.TPESampler(seed=42),
+                                sampler=optuna.samplers.TPESampler(seed=seed),
                                 pruner=optuna.pruners.MedianPruner(n_warmup_steps=2))
-    study.optimize(objective, n_trials=1)
+
+    study.optimize(objective, n_trials=20)
 
     best_params = study.best_params
     with open('best_params.json', 'w') as f:
         json.dump(best_params, f, indent=2)
     print("Mejores HParams:", best_params)
+
+    # 2) Extraer importancia de cada hparam
+    importances = get_param_importances(study)
+    # importances es un dict: { 'lr': 0.45, 'hidden_size': 0.30, ... }
+
+    # 3) Volcar a DataFrame y a CSV
+    imp_df = pd.DataFrame.from_dict(importances, orient='index', columns=['importance'])
+    imp_df = imp_df.sort_values('importance', ascending=False)
+    imp_df.to_csv('param_importances.csv')
+
+    print("Importancias de hiperparámetros:")
+    print(imp_df)
 
