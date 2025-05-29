@@ -44,7 +44,14 @@ class TrackingDataModule(LightningDataModule):
         self.scale = scale
         self.scaler = None
 
+    def prepare_data(self) -> None:
+        print("Preparing data for TrackingDataModule...")
+        # Here you can implement any data preparation logic if needed
+        # For example, downloading or preprocessing data files
+        pass
+
     def setup(self, stage=None):
+        print(f"Setting up TrackingDataModule with {len(self.data_list)} samples.")
         full_ds = TrackingDataset(self.data_list)
         if self.train_idx is not None and self.val_idx is not None:
             train_ds = Subset(full_ds, self.train_idx)

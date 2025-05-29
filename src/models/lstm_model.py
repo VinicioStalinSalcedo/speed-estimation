@@ -98,7 +98,7 @@ class TrackingLSTM(pl.LightningModule):
                                      weight_decay=self.hparams.weight_decay
                                      )
         scheduler = {
-            'scheduler': ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5),
+            'scheduler': ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=4),
             'monitor': 'val_loss',
             'interval': 'epoch',
             'frequency': 1

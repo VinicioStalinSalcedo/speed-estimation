@@ -12,6 +12,7 @@ from train.train_lstm import CustomProgressBar
 
 def train_fold(data_list, train_idx, val_idx, **config):
 
+    print(f'>>> Start Train fold in rank...')
     # DataModule
     data_module = TrackingDataModule(
         data_list=data_list,
@@ -37,7 +38,7 @@ def train_fold(data_list, train_idx, val_idx, **config):
     logger = CSVLogger("logs/", name=config.get('log_path', "folds"))
     callbacks = [
         ModelCheckpoint(save_top_k=1, mode='min', monitor='val_loss'),
-        EarlyStopping(monitor='val_loss', patience=config.get('patience', 5))
+        EarlyStopping(monitor='val_loss', patience=config.get('patience', 7))
     ]
     if config.get('progress_bar'):
         callbacks.append(CustomProgressBar())
@@ -55,7 +56,13 @@ def train_fold(data_list, train_idx, val_idx, **config):
         enable_model_summary=config.get('model_summary', True)
     )
     print(f">>> Training fold with config: {config}")
-    trainer.fit(model, datamodule=data_module)
+
+    try:
+        trainer.fit(model, datamodule=data_module)
+    except Exception as e:
+        print("⚠️ Error detectado al entrenar, fallando este fold con loss muy alto")
+        return float('inf')
+
     result = trainer.validate(model, datamodule=data_module, ckpt_path='best')
     print(f'<<< Finish Trial')
     return result[0]['val_loss']
