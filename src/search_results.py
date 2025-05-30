@@ -84,7 +84,7 @@ def load_trial_results_simplified(base_log_dir, n_trials, n_folds):
     return results_df
 
 
-log_directory = 'logs/bayesian_log' # AJUSTA ESTA RUTA
+log_directory = 'logs/optuna_trials' # AJUSTA ESTA RUTA
 
 # Número de trials y folds que configuraste en tu estudio Optuna
 num_total_trials = 20
