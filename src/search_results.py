@@ -3,7 +3,7 @@ import pandas as pd
 import yaml
 import numpy as np
 
-def load_trial_results_simplified(base_log_dir, n_trials, n_folds):
+def load_trial_results(base_log_dir, n_trials, n_folds):
     all_trials_data = []
     optuna_hparams_keys = ['hidden_size', 'num_layers', 'dropout', 'lr', 'weight_decay']
     metrics_to_process = ['val_loss', 'val_mse', 'val_mae', 'val_acc']
@@ -47,7 +47,10 @@ def load_trial_results_simplified(base_log_dir, n_trials, n_folds):
             df_aggregated_fold_metrics = pd.DataFrame(fold_metrics)
             trial_metrics = df_aggregated_fold_metrics.mean().to_dict()
             trial_metrics['trial'] = trial_idx
-            trial_metrics['num_folds_processed'] = len(fold_metrics)
+            trial_metrics['folds'] = len(fold_metrics)
+            for hparam_key in optuna_hparams_keys:
+                if hparam_key in hparams_content:
+                    trial_metrics[hparam_key] = hparams_content[hparam_key]
             all_trials_data.append(trial_metrics)
 
     if not all_trials_data:
@@ -55,11 +58,7 @@ def load_trial_results_simplified(base_log_dir, n_trials, n_folds):
         return pd.DataFrame()
 
     results_df = pd.DataFrame(all_trials_data)
-    final_columns = ['trial'] + optuna_hparams_keys + metrics_to_process + ['num_folds_processed']
-
-    for col in final_columns:
-        if col not in results_df.columns:
-            results_df[col] = np.nan
+    final_columns = ['trial'] + optuna_hparams_keys + metrics_to_process + ['folds']
     results_df = results_df[final_columns]
 
     if 'val_loss' in results_df.columns:
@@ -69,21 +68,3 @@ def load_trial_results_simplified(base_log_dir, n_trials, n_folds):
 
     return results_df
 
-
-log_directory = 'logs/bayesian_log' # AJUSTA ESTA RUTA
-
-# Número de trials y folds que configuraste en tu estudio Optuna
-num_total_trials = 2
-num_folds_per_trial = 5
-
-df_simplified_results = load_trial_results_simplified(
-    base_log_dir=log_directory,
-    n_trials=num_total_trials,
-    n_folds=num_folds_per_trial
-)
-
-if not df_simplified_results.empty:
-    print("Resultados simplificados de los trials (ordenados por val_loss ascendente):")
-    print(df_simplified_results.head())
-else:
-    print("No se pudieron cargar los resultados de los trials con el método simplificado.")
