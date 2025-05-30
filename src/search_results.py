@@ -1,88 +1,120 @@
-from train.train_lstm import train_lstm_pipeline
-import numpy as np
-import pandas as pd
-import itertools
-import json
 import os
-from pytorch_lightning.callbacks import ModelCheckpoint # Importa ModelCheckpoint
+import pandas as pd
+import yaml
+import numpy as np
 
-ALL_VIDEOS = [
-    # ('session0', 'center'),
-    # ('session0', 'left'),
-    # ('session0', 'right'),
-    ('session1', 'center'),
-    ('session1', 'left'),
-    ('session1', 'right'),
-    ('session2', 'center'),
-    ('session2', 'left'),
-    ('session2', 'right'),
-    ('session3', 'center'),
-    ('session3', 'left'),
-    ('session3', 'right'),
-    ('session4', 'center'),
-    ('session4', 'left'),
-    ('session4', 'right'),
-    ('session5', 'center'),
-    ('session5', 'left'),
-    ('session5', 'right'),
-    ('session6', 'center'),
-    ('session6', 'left'),
-    ('session6', 'right'),
-]
+def load_trial_results_simplified(base_log_dir, n_trials, n_folds):
+    all_trials_data = []
+    optuna_hparams_keys = ['hidden_size', 'num_layers', 'dropout', 'lr', 'weight_decay']
+    metrics_to_process = ['val_loss', 'val_mse', 'val_mae', 'val_acc']
+    fixed_version_dir = 'version_0'
 
-feature_path = 'fbbox'
-# feature_path = 'faspect'
-# feature_path = 'fbbox_angle'
-# feature_path = 'fall'
-
-
-def search_results():
-    param_grid = {
-        'hidden_size': [32, 64, 128],
-        'num_layers': [1, 2, 3],
-        'dropout': [0.0, 0.2, 0.5],
-        'learning_rate': [1e-3, 1e-4, 1e-5],
-    }
-
-    summary_data = []
-
-    for hs, nl, do, lr in itertools.product(*param_grid.values()):
-        print(f'**Grid Search**')
-        print(f"Entrenando con hs={hs}, nl={nl}, do={do}, lr={lr}")
-        print(f'Feature path: {feature_path}')
-        exp_name = f'{feature_path}/hs{hs}_nl{nl}_do{do}_lr{lr}'
-        metrics_file = f'logs/{exp_name}/metrics.csv'
-
-        if os.path.exists(metrics_file):
-            df_metrics = pd.read_csv(metrics_file)
-
-            # Asegurarse de que 'val_loss' existe y no es nula
-            if 'val_loss' in df_metrics.columns and not df_metrics['val_loss'].isnull().all():
-                # Encontrar la fila con la mínima val_loss (excluyendo NaNs que ocurren en la última época)
-                best_val_row = df_metrics.loc[df_metrics['val_loss'].dropna().idxmin()]
-
-                # Puedes agregar más métricas si son relevantes y están en tu CSV
-                summary_data.append({
-                    'Version': exp_name,
-                    'Epoch': int(best_val_row['epoch']),
-                    'Best Val Loss': best_val_row['val_loss'],
-                    'Train Loss at Best Val': best_val_row['train_loss'] if 'train_loss' in best_val_row else 'N/A',
-                    # Agrega aquí otras métricas de validación si las registras (ej. val_accuracy)
-                })
-            else:
-                print(f"Advertencia: '{metrics_file}' no contiene 'val_loss' o está vacía.")
-        else:
-            print(f"Advertencia: '{metrics_file}' no encontrado.")
-
-    if summary_data:
-        df_summary = pd.DataFrame(summary_data)
-        return df_summary
-    else:
+    if not os.path.isdir(base_log_dir):
+        print(f"Error: Directorio base de logs no encontrado: {base_log_dir}")
         return pd.DataFrame()
 
+    for trial_idx in range(n_trials):
+        trial_name = f'trial_{trial_idx}'
+        current_trial_hparams = {}
+        hparams_loaded_for_trial = False
 
-if __name__ == '__main__':
-    summary = search_results()
-    print(summary)
-    display(summary)
-    print(summary)
+        # Almacena diccionarios de métricas (de la mejor época) para cada fold procesado en este trial
+        trial_fold_best_epoch_metrics_list = []
+
+        for fold_k in range(1, n_folds + 1):
+            fold_name = f'fold_{fold_k}'
+            version_path = os.path.join(base_log_dir, trial_name, fold_name, fixed_version_dir)
+
+            if not os.path.isdir(version_path):
+                print(f"Advertencia: Directorio no encontrado {version_path}. Saltando fold {fold_k} para trial {trial_idx}.")
+                continue
+
+            hparams_file = os.path.join(version_path, 'hparams.yaml')
+            if os.path.exists(hparams_file):
+                try:
+                    with open(hparams_file, 'r') as f:
+                        hparams_content = yaml.safe_load(f)
+                    for key in optuna_hparams_keys:
+                        if key in hparams_content:
+                            current_trial_hparams[key] = hparams_content[key]
+                except Exception as e:
+                    print(f"Error leyendo o procesando {hparams_file}: {e}")
+            # else:
+                # print(f"Advertencia: hparams.yaml no encontrado en {version_path} al intentar cargar para trial {trial_idx}")
+
+            metrics_file = os.path.join(version_path, 'metrics.csv')
+            if os.path.exists(metrics_file):
+                try:
+                    df_metrics = pd.read_csv(metrics_file)
+
+                    if 'val_loss' in df_metrics.columns and not df_metrics['val_loss'].dropna().empty:
+                        # Encontrar el índice de la fila con el val_loss mínimo (ignorando NaNs)
+                        best_epoch_idx = df_metrics['val_loss'].dropna().idxmin()
+                        best_epoch_row_metrics = df_metrics.loc[best_epoch_idx]
+
+                        current_fold_metrics = {}
+                        for metric_key in metrics_to_process:
+                            if metric_key in best_epoch_row_metrics.index and pd.notna(best_epoch_row_metrics[metric_key]):
+                                current_fold_metrics[metric_key] = best_epoch_row_metrics[metric_key]
+
+                        # Solo añadir si se pudo extraer al menos val_loss
+                        if 'val_loss' in current_fold_metrics:
+                            trial_fold_best_epoch_metrics_list.append(current_fold_metrics)
+                except Exception as e:
+                    print(f"Error leyendo {metrics_file}: {e}")
+
+        # Después de procesar todos los folds para el trial actual
+        if trial_fold_best_epoch_metrics_list and hparams_loaded_for_trial:
+            df_aggregated_fold_metrics = pd.DataFrame(trial_fold_best_epoch_metrics_list)
+
+            # Calcular la media de cada métrica a través de los folds
+            mean_metrics_for_trial = df_aggregated_fold_metrics.mean().to_dict()
+
+            trial_data_entry = {'trial': trial_idx, **current_trial_hparams}
+            for key, value in mean_metrics_for_trial.items():
+                trial_data_entry[f'mean_{key}'] = value # Ej: mean_val_loss, mean_val_mse
+
+            trial_data_entry['num_folds_processed'] = len(trial_fold_best_epoch_metrics_list)
+            all_trials_data.append(trial_data_entry)
+
+    if not all_trials_data:
+        print("No se encontraron datos de trials procesables con la configuración proporcionada.")
+        return pd.DataFrame()
+
+    results_df = pd.DataFrame(all_trials_data)
+
+    # Asegurar que todas las columnas esperadas existan
+    mean_metric_cols = [f'mean_{m}' for m in metrics_to_process]
+    final_columns = ['trial'] + optuna_hparams_keys + mean_metric_cols + ['num_folds_processed']
+
+    for col in final_columns:
+        if col not in results_df.columns:
+            results_df[col] = np.nan
+
+    results_df = results_df[final_columns]
+
+    if 'mean_val_loss' in results_df.columns:
+        results_df = results_df.sort_values(by='mean_val_loss', ascending=True)
+    else:
+        print("Advertencia: La columna 'mean_val_loss' no está presente. El DataFrame no se ordenará.")
+
+    return results_df
+
+
+log_directory = '../logs/bayesian_log' # AJUSTA ESTA RUTA
+
+# Número de trials y folds que configuraste en tu estudio Optuna
+num_total_trials = 20
+num_folds_per_trial = 5
+
+df_simplified_results = load_trial_results_simplified(
+    base_log_dir=log_directory,
+    n_trials=num_total_trials,
+    n_folds=num_folds_per_trial
+)
+
+if not df_simplified_results.empty:
+    print("Resultados simplificados de los trials (ordenados por mean_val_loss ascendente):")
+    print(df_simplified_results.head())
+else:
+    print("No se pudieron cargar los resultados de los trials con el método simplificado.")
