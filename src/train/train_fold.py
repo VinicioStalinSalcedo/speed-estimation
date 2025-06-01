@@ -38,13 +38,13 @@ def train_fold(data_list, train_idx, val_idx, **config):
     logger = CSVLogger("logs/", name=config.get('log_path', "folds"))
     callbacks = [
         ModelCheckpoint(save_top_k=1, mode='min', monitor='val_loss'),
-        EarlyStopping(monitor='val_loss', patience=config.get('patience', 7))
+        EarlyStopping(monitor='val_loss', patience=config.get('patience', 5))
     ]
     if config.get('progress_bar'):
         callbacks.append(CustomProgressBar())
 
     trainer = Trainer(
-        max_epochs=config.get('epochs', 100),
+        max_epochs=config.get('epochs', 80),
         callbacks=callbacks,
         accelerator="auto",
         devices="auto",
@@ -60,7 +60,7 @@ def train_fold(data_list, train_idx, val_idx, **config):
     try:
         trainer.fit(model, datamodule=data_module)
     except Exception as e:
-        print("⚠️ Error detectado al entrenar, fallando este fold con loss muy alto")
+        print(f"⚠️ Error detectado al entrenar, fallando este fold con loss muy alto {e}")
         return float('inf')
 
     result = trainer.validate(model, datamodule=data_module, ckpt_path='best')

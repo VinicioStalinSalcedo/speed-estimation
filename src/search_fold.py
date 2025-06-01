@@ -50,7 +50,7 @@ def objective(trial, train_val_list, seed, input_size):
     losses = []
 
     # Directorio general de resultados del trial
-    trial_dir = os.path.join('bayesian_log', f'trial_{trial.number}')
+    trial_dir = os.path.join('search_log', f'trial_{trial.number}')
 
     for fold, (train_idx, val_idx) in enumerate(kf.split(train_val_list)):
         fold_dir = os.path.join(trial_dir, f'fold_{fold+1}')
@@ -76,8 +76,8 @@ def objective(trial, train_val_list, seed, input_size):
                               log_path=fold_dir,
 
                               # Trainer
-                              patience=7,
-                              epochs=100,
+                              patience=5,
+                              epochs=80,
                               log_every_n_steps=10,
 
                               progress_bar=True,
@@ -100,7 +100,7 @@ def objective(trial, train_val_list, seed, input_size):
 
 
 if __name__ == '__main__':
-    seed = 42
+    seed = 47
 
     seed_everything(seed)
     # torch.use_deterministic_algorithms(True)
@@ -121,7 +121,7 @@ if __name__ == '__main__':
 
     study = optuna.create_study(direction='minimize',
                                 sampler=optuna.samplers.TPESampler(seed=seed),
-                                pruner=optuna.pruners.MedianPruner(n_warmup_steps=3))
+                                pruner=optuna.pruners.MedianPruner(n_warmup_steps=2))
 
     study.optimize(lambda trial: objective(trial, train_val_list, seed, input_size), n_trials=20)
 

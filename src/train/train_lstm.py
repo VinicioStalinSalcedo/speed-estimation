@@ -15,12 +15,13 @@ class CustomProgressBar(TQDMProgressBar):
         return bar
 
 
-def train_lstm_pipeline(data_list, train_idx, val_idx, **config):
+def train_lstm_pipeline(data_list, train_idx, val_idx, test_idx, **config):
     # DataModule
     data_module = TrackingDataModule(
         data_list=data_list,
         train_idx=train_idx,
         val_idx=val_idx,
+        test_idx=test_idx,
         batch_size=config.get('batch_size', 4),
         split_ratio=config.get('split_ratio', (0.8, 0.1, 0.1)),
         num_workers=config.get('num_workers', 4)
@@ -58,8 +59,6 @@ def train_lstm_pipeline(data_list, train_idx, val_idx, **config):
         enable_model_summary=config.get('model_summary', True)
     )
     trainer.fit(model, datamodule=data_module)
-    val_metrics = trainer.callback_metrics
-    trainer.validate(model, datamodule=data_module)
-    test_metrics = trainer.callback_metrics
+    result = trainer.validate(model, datamodule=data_module)
 
-    return data_module, model, trainer, logger, val_metrics, test_metrics
+    return data_module, model, trainer, logger, result

@@ -33,21 +33,20 @@ class ScaledDataset(Dataset):
 
 
 class TrackingDataModule(LightningDataModule):
-    def __init__(self, data_list, batch_size, split_ratio, train_idx=None, val_idx=None, num_workers=4, scale=True):
+    def __init__(self, data_list, batch_size, split_ratio, train_idx=None, val_idx=None, test_idx=None, num_workers=4, scale=True):
         super().__init__()
         self.data_list = data_list
         self.batch_size = batch_size
         self.split_ratio = split_ratio
         self.train_idx = train_idx
         self.val_idx = val_idx
+        self.test_idx = test_idx
         self.num_workers = num_workers
         self.scale = scale
         self.scaler = None
 
     def prepare_data(self) -> None:
         print("Preparing data for TrackingDataModule...")
-        # Here you can implement any data preparation logic if needed
-        # For example, downloading or preprocessing data files
         pass
 
     def setup(self, stage=None):
@@ -56,7 +55,10 @@ class TrackingDataModule(LightningDataModule):
         if self.train_idx is not None and self.val_idx is not None:
             train_ds = Subset(full_ds, self.train_idx)
             val_ds = Subset(full_ds, self.val_idx)
-            test_ds = Subset(full_ds, [])
+            if self.test_idx is not None:
+                test_ds = Subset(full_ds, self.test_idx)
+            else:
+                test_ds = Subset(full_ds, [])
         else:
             total = len(full_ds)
             train_n = int(total * self.split_ratio[0])

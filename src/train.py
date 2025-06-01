@@ -1,9 +1,18 @@
+import os
+import pandas as pd
+import yaml
+import numpy as np
+import matplotlib.pyplot as plt
+from search_results import load_trial_results, generate_summary_table, get_kfold_mean_metrics, plot_learning_curves
+import torch
+import random
+from pytorch_lightning import seed_everything
+from dataset.tracking_dataset import load_data_list
+from sklearn.model_selection import train_test_split
 from train.train_lstm import train_lstm_pipeline
 import json
+
 ALL_VIDEOS = [
-    # ('session0', 'center'),
-    # ('session0', 'left'),
-    # ('session0', 'right'),
     ('session1', 'center'),
     ('session1', 'left'),
     ('session1', 'right'),
@@ -25,82 +34,67 @@ ALL_VIDEOS = [
 ]
 
 
-def train():
-    data_list = []
-    for session, recording in ALL_VIDEOS:
-        with open(f'results_instance/{session}_{recording}/tracked_cars_data.json', 'r') as f:
-            cars = json.load(f)['cars']
-            valid_cars = list(filter(lambda car: car.get('gt_data', {}).get('speed', None) is not None, cars))
-            data_list.extend([extract_features(car) for car in valid_cars])
-
-    input_size = len(data_list[0]['features'][0])
-
-    data_module, model, trainer, logger = train_lstm_pipeline(
+def train(full_list, train_idx, val_idx, test_idx, input_size, hparams):
+    data_module, model, trainer, logger, result = train_lstm_pipeline(
         # Dataset
-        data_list,
+        data_list=full_list,
+        train_idx=train_idx,
+        val_idx=val_idx,
+        test_idx=test_idx,
 
         # DataModule params
         batch_size=4,
-        split_ratio=(0.8, 0.1, 0.1),
+        split_ratio=(0.64, 0.16, 0.2),
         num_workers=4,
 
         # LSTM params
         input_size=input_size,
-        hidden_size=64,
-        num_layers=2,
+        hidden_size=int(hparams['hidden_size']),
+        num_layers=int(hparams['num_layers']),
         output_size=1,
-        learning_rate=1e-3,
-        dropout=0.0,
+        learning_rate=hparams['lr'],
+        dropout=hparams['dropout'],
+        weight_decay=hparams['weight_decay'],
 
         # Logger
-        log_path='tracking_lstm_sc',
+        log_path='test_models',
 
         # Trainer
         patience=7,
-        epochs=200,
+        epochs=100,
         log_every_n_steps=10,
 
         progress_bar=True,
     )
 
-    trainer.test(model, datamodule=data_module)
-
-
-def extract_features(car):
-    speed = car.get('gt_data', {}).get('speed', None)
-    features = []
-    fdatas = car['fdata']
-    for fdata in fdatas:
-        [x1, y1], [x2, y2] = fdata['bbox']['pos']
-        bbox_center = fdata['bbox']['center']
-        bbox_width, bbox_height = fdata['bbox']['dims']
-        bbox_area, bbox_aspect_ratio = fdata['bbox']['area'], fdata['bbox']['aspect_ratio'] # may change aspect_ratio for (width / height)
-        [rx1, ry1], [rx2, ry2], [rx3, ry3], [rx4, ry4] = fdata['rotated_bbox']['pos']
-        rbbox_center = fdata['rotated_bbox']['center']
-        rbbox_width, rbbox_height = fdata['rotated_bbox']['dims']
-        rbbox_area, rbbox_angle, rbbox_aspect_ratio = fdata['rotated_bbox']['area'], fdata['rotated_bbox']['angle'], fdata['rotated_bbox']['aspect_ratio']
-        bottom_x, bottom_y = fdata['bottom']
-        mask_area = fdata['mask_area']
-
-        features.append([
-            # x1, y1, x2, y2,
-            # bbox_center[0], bbox_center[1],
-            # bbox_width, bbox_height,
-            bottom_x, bottom_y,
-            bbox_aspect_ratio,
-            # rx1, ry1, rx2, ry2, rx3, ry3, rx4, ry4,
-            # rbbox_center[0], rbbox_center[1],
-            # rbbox_width, rbbox_height,
-            rbbox_angle,
-            rbbox_aspect_ratio,
-            mask_area,
-        ])
-    return {
-        'features': features,
-        'speed': speed
-    }
-
 
 if __name__ == '__main__':
-    train()
+    seed = 47
+    seed_everything(seed)
+    random.seed(seed)
+    np.random.seed(seed)
+
+    full_list = load_data_list(ALL_VIDEOS, results_folder='results_instance', feature_path='all_features')
+    all_idx = np.arange(len(full_list))
+    train_val_idx, test_idx = train_test_split(
+        all_idx, test_size=0.2, random_state=seed, shuffle=True
+    )
+    train_idx, val_idx = train_test_split(
+        train_val_idx, test_size=0.2, random_state=seed, shuffle=False
+    )
+    train_list = [full_list[i] for i in train_idx]
+    val_list = [full_list[i] for i in val_idx]
+    test_list = [full_list[i] for i in test_idx]
+
+    hparams = {
+        'hidden_size': 128,
+        'num_layers': 3,
+        'dropout': 0.06465945488805763,
+        'lr': 0.0004388375502916408,
+        'weight_decay': 3.549240290879743e-05,
+    }
+
+    input_size = len(train_list[0]['features'][0])
+
+    train(full_list, train_idx, val_idx, test_idx, input_size, hparams)
 
