@@ -12,9 +12,6 @@ from optuna.importance import get_param_importances
 import pandas as pd
 
 ALL_VIDEOS = [
-    # ('session0', 'center'),
-    # ('session0', 'left'),
-    # ('session0', 'right'),
     ('session1', 'center'),
     ('session1', 'left'),
     ('session1', 'right'),
@@ -103,9 +100,7 @@ if __name__ == '__main__':
     seed = 47
 
     seed_everything(seed)
-    # torch.use_deterministic_algorithms(True)
-    # torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = True  # Para mejorar el rendimiento en GPU
+    torch.backends.cudnn.benchmark = True
     random.seed(seed)
     np.random.seed(seed)
 
