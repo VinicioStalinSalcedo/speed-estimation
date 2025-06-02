@@ -8,9 +8,6 @@ import os
 from pytorch_lightning.callbacks import ModelCheckpoint
 
 ALL_VIDEOS = [
-    # ('session0', 'center'),
-    # ('session0', 'left'),
-    # ('session0', 'right'),
     ('session1', 'center'),
     ('session1', 'left'),
     ('session1', 'right'),
@@ -42,16 +39,11 @@ def search():
     data_list = load_data_list(ALL_VIDEOS, results_folder='results_instance', feature_path='all_features')
 
     param_grid = {
-        # 'hidden_size': [32, 64, 128],
-        'hidden_size': [64],
-        # 'num_layers': [2, 3, 4],
-        'num_layers': [2],
-        # 'dropout': [0.0, 0.1, 0.2],
-        'dropout': [0.1],
-        # 'learning_rate': [1e-2, 1e-3, 1e-4],
-        'learning_rate': [1e-3],
-        # 'weight_decay': [1e-6, 1e-5, 1e-4],
-        'weight_decay': [1e-4]
+        'hidden_size': [32, 64, 128],
+        'num_layers': [2, 3, 4],
+        'dropout': [0.0, 0.1, 0.2],
+        'learning_rate': [1e-2, 1e-3, 1e-4],
+        'weight_decay': [1e-6, 1e-5, 1e-4],
     }
 
     input_size = len(data_list[0]['features'][0])
