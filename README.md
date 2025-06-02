@@ -9,9 +9,6 @@ speed-estimation/
 ├── README.md
 └── src/
     ├── search_lstm.py
-    ├── train/
-    │   ├── train_fold.py
-    │   └── train_lstm.py
     ├── dataset/
     │   ├── tracking_datamodule.py
     │   ├── tracking_dataset.py
@@ -23,6 +20,9 @@ speed-estimation/
     │   ├── process_video.py
     │   ├── tracker.py
     │   └── video_handler.py
+    ├── train/
+    │   ├── train_fold.py
+    │   └── train_lstm.py
     ├── utils/
     │   └── utils.py
     ├── results/
@@ -35,7 +35,7 @@ speed-estimation/
 - `.gitignore`: Archivos y carpetas ignorados por git, incluyendo resultados, logs y entornos virtuales.
 - `README.md`: Documentación principal del proyecto.
 - `src`: Código fuente principal.
-  - `search_lstm.py`: Script para búsqueda de hiperparámetros del modelo LSTM.
+  - `search_fold.py`: Script para búsqueda de hiperparámetros del modelo LSTM.
   - `train/`: Scripts de entrenamiento.
     - `train_fold.py`: Entrenamiento por fold (validación cruzada).
     - `train_lstm.py`: Entrenamiento general del modelo LSTM.
@@ -58,7 +58,7 @@ speed-estimation/
 
 ## Dependencias principales
 
-- Python 3.x
+- Python 3.10.12
 - PyTorch
 - PyTorch Lightning
 - Optuna
@@ -79,8 +79,10 @@ pip install -r requirements.txt
 
 ## Dataset
 
-El proyecto utiliza el dataset BrnoCompSpeed. Asegúrate de tener acceso y configurar correctamente las rutas en `dataset_info.py`.
+El proyecto utiliza el dataset BrnoCompSpeed. Para obtener el dataset, comunicarse con Jakub Špaňhel - ispanhel@fit.vutbr.cz.
+
+Posteriormente configurar correctamente las rutas en `dataset_info.py`.
 
 ## Créditos
 
-Desarrollado por el equipo de investigación de velocidad vehicular.
+Desarrollado por Vinicio Salcedo.
