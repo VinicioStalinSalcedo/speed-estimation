@@ -74,7 +74,7 @@ def process_instance_video(session_recording):
     print(f"▶️ Procesando {session_recording.session} {session_recording.recording}...")
 
     # === Preparar carpetas y nombres de archivo de salida ===
-    save_dir = os.path.join("results_instance", f"{session_recording.session}_{session_recording.recording}")
+    save_dir = os.path.join("results", f"{session_recording.session}_{session_recording.recording}")
     os.makedirs(save_dir, exist_ok=True)
     output_json_path = os.path.join(save_dir, "tracked_cars_data.json")
     video_out_path = os.path.join(save_dir, "video_output.mp4")
@@ -85,7 +85,7 @@ def process_instance_video(session_recording):
             output_path=video_out_path,
             fps=session_recording.fps,
             window_name=f"Tracking - {session_recording.session} {session_recording.recording}",
-            show_output=True,
+            show_output=False,
             save_output=False,
         )
     except IOError as e:

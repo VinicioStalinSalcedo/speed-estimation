@@ -95,7 +95,7 @@ def extract_features(car, feature_path='all_features'):
     }
 
 
-def load_data_list(videos, results_folder='results_instance', feature_path='all_features'):
+def load_data_list(videos, results_folder='results', feature_path='all_features'):
     data_list = []
     for session, recording in videos:
         with open(f'{results_folder}/{session}_{recording}/tracked_cars_data.json', 'r') as f:

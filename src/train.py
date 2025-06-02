@@ -74,7 +74,7 @@ if __name__ == '__main__':
     random.seed(seed)
     np.random.seed(seed)
 
-    full_list = load_data_list(ALL_VIDEOS, results_folder='results_instance', feature_path='all_features')
+    full_list = load_data_list(ALL_VIDEOS, results_folder='results', feature_path='all_features')
     all_idx = np.arange(len(full_list))
     train_val_idx, test_idx = train_test_split(
         all_idx, test_size=0.2, random_state=seed, shuffle=True

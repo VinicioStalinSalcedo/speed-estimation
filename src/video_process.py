@@ -1,5 +1,4 @@
 from dataset.session_recording import SessionRecording
-from processing.process_video import process_video
 from processing.process_instance import process_instance_video
 
 ALL_VIDEOS = [

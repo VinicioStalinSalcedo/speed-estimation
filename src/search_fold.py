@@ -47,7 +47,7 @@ def objective(trial, train_val_list, seed, input_size):
     losses = []
 
     # Directorio general de resultados del trial
-    trial_dir = os.path.join('search_log', f'trial_{trial.number}')
+    trial_dir = os.path.join('bayesian_log', f'trial_{trial.number}')
 
     for fold, (train_idx, val_idx) in enumerate(kf.split(train_val_list)):
         fold_dir = os.path.join(trial_dir, f'fold_{fold+1}')
@@ -105,7 +105,7 @@ if __name__ == '__main__':
     np.random.seed(seed)
 
     # ── 1) Hold-out TEST ──────────────────────────────────────
-    full_list = load_data_list(ALL_VIDEOS, results_folder='results_instance', feature_path='all_features')
+    full_list = load_data_list(ALL_VIDEOS, results_folder='results', feature_path='all_features')
     all_indices = np.arange(len(full_list))
     train_val_indices, test_indices = train_test_split(
         all_indices, test_size=0.2, random_state=seed, shuffle=True
