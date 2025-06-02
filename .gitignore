@@ -172,5 +172,7 @@ cython_debug/
 
 /src/results
 /src/ims
+/src/logs
+/src/lightning_logs
 /models
 
