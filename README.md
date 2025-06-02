@@ -71,7 +71,7 @@ speed-estimation/
 - PyTorch Lightning
 - Optuna
 
-Instala las dependencias con:
+Instalar las dependencias con:
 
 pip install -r requirements.txt
 
