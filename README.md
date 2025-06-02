@@ -8,11 +8,15 @@ speed-estimation/
 ├── .gitignore
 ├── README.md
 └── src/
-    ├── search_lstm.py
+    ├── search_fold.py
+    ├── train.py
+    ├── video_process.py
     ├── dataset/
     │   ├── tracking_datamodule.py
     │   ├── tracking_dataset.py
     │   └── dataset_info.py
+    ├── evaluation/
+    │   └── results.ipynb
     ├── models/
     │   └── lstm_model.py
     ├── processing/
@@ -36,6 +40,10 @@ speed-estimation/
 - `README.md`: Documentación principal del proyecto.
 - `src`: Código fuente principal.
   - `search_fold.py`: Script para búsqueda de hiperparámetros del modelo LSTM.
+  - `train.py`: Script para entrenar modelos con hiperparámetros definidos.
+  - `video_process.py`: Script para procesar los videos del dataset BrnoCompSpeed y generar los archivos con las características de cada detección.
+  - `evaluation`: Scripts para evaluación de resultados
+    - `results.ipynb`: Notebook para evaluación del código, cargar modelos y generar resultados en dataframe, tablas y gráficas.
   - `train/`: Scripts de entrenamiento.
     - `train_fold.py`: Entrenamiento por fold (validación cruzada).
     - `train_lstm.py`: Entrenamiento general del modelo LSTM.
@@ -69,13 +77,19 @@ pip install -r requirements.txt
 
 ## Uso
 
-1. Configura las rutas del dataset en `src/dataset/dataset_info.py` si es necesario.
-2. Ejecuta los scripts de entrenamiento o búsqueda de hiperparámetros desde la carpeta `src/`:
-   - Para entrenar:
-     python train/train_lstm.py
+1. Configurar las rutas del dataset en `src/dataset/dataset_info.py` si es necesario.
+2. Ejecutar los scripts de procesamiento de video, búsqueda de hiperparámetros o entrenamiento desde la carpeta `src/`:
+   - Para procesar el video:
+     python video_process.py
    - Para búsqueda de hiperparámetros:
-     python search_lstm.py
+     python search_fold.py
+   - Para entrenar. Tomar en cuenta que debe cambiar los hiperparámetros directamente en el archivo train.py
+     python train.py
 3. Los resultados y logs se almacenarán en las carpetas correspondientes dentro de `src/`.
+   - Los resultados del procesamiento de video se guardará dentro de la carpeta `src/results`.
+   - Los resultados de la optimización de hiperparámetros se guardarán en la carpeta `logs/bayesian_log`
+   - Los resultados del entrenamiento se guardarán en la carpeta `logs/test_models`
+
 
 ## Dataset
 
