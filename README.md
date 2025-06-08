@@ -3,7 +3,7 @@
 Proyecto para la estimación de velocidad de vehículos usando modelos LSTM y PyTorch Lightning sobre el dataset BrnoCompSpeed.
 
 ## Estructura del proyecto
-
+````
 speed-estimation/
 ├── .gitignore
 ├── README.md
@@ -33,7 +33,7 @@ speed-estimation/
     ├── ims/
     ├── logs/
     └── lightning_logs/
-
+````
 ### Descripción de carpetas y archivos
 
 - `.gitignore`: Archivos y carpetas ignorados por git, incluyendo resultados, logs y entornos virtuales.
