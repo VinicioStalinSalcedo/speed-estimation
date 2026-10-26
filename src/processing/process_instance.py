@@ -77,7 +77,7 @@ def process_instance_video(session_recording):
     save_dir = os.path.join("results", f"{session_recording.session}_{session_recording.recording}")
     os.makedirs(save_dir, exist_ok=True)
     output_json_path = os.path.join(save_dir, "tracked_cars_data.json")
-    video_out_path = os.path.join(save_dir, "video_output.mp4")
+    video_out_path = os.path.join(save_dir, "video_output_match.mp4")
 
     try:
         video_processor = VideoProcessor(
@@ -85,8 +85,8 @@ def process_instance_video(session_recording):
             output_path=video_out_path,
             fps=session_recording.fps,
             window_name=f"Tracking - {session_recording.session} {session_recording.recording}",
-            show_output=False,
-            save_output=False,
+            show_output=True,
+            save_output=True,
         )
     except IOError as e:
         print(f"Error al inicializar VideoProcessor: {e}")

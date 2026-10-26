@@ -14,6 +14,8 @@ bbox_color = (102, 255, 102)
 # mask_color = (255, 153, 51)
 mask_color = colors(3, True)
 text_color = (50, 50, 50)
+crosshair_color = (0, 255, 255)
+aspect_ratio_rect_color = (255, 165, 0)
 
 
 class VideoProcessor:
@@ -35,9 +37,9 @@ class VideoProcessor:
         self.total_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
         # === Configuración para la SALIDA comprimida ===
-        self.output_fps = 25.0
-        self.output_width = 960 # 854 # 1280 # 1920
-        self.output_height = 540 # 480 # 720 # 1080
+        self.output_fps = 50.0
+        self.output_width = 1280 # 960 # 854 # 1280 # 1920
+        self.output_height = 720 # 540 # 480 # 720 # 1080
         self.output_size = (self.output_width, self.output_height)
         # === Fin Configuración para la SALIDA ===
 
@@ -185,11 +187,18 @@ class VideoProcessor:
         tracks_info = {}
         frame_num = 0
 
+        i = 0
+
         # === Bucle principal de procesamiento ===
         while True:
             ret, frame = self.read_frame()
             if not ret:
                 break
+
+            i += 1
+            if i < 2725:
+                frame_num += 1
+                continue
 
             annotator = Annotator(frame,
                                   line_width=3,
@@ -198,8 +207,8 @@ class VideoProcessor:
 
             detections = tracker.instance_track(frame, class_ids=[2])
 
-            cv2.polylines(frame, contours, isClosed=True, color=(255, 0, 0), thickness=2)
-            draw_lines(frame, lane_lines, self.input_width, color=(0, 255, 255))
+            # cv2.polylines(frame, contours, isClosed=True, color=(255, 0, 0), thickness=2)
+            # draw_lines(frame, lane_lines, self.input_width, color=(0, 255, 255))
             draw_lines(frame, measurement_lines, self.input_width, color=(255, 0, 255))
 
             for track_id, class_id, (x1, y1, x2, y2), mask_points in detections:
@@ -214,7 +223,11 @@ class VideoProcessor:
 
                 bottom = mask_points[np.argmax(mask_points[:, 1])].tolist()
 
-                annotator.seg_bbox(mask=mask_points, mask_color=colors(track_id, True), label=f'123')
+                # annotator.seg_bbox(mask=mask_points,
+                #                    label=f"Real {71.11}, Predicted {69.93} km/h",
+                #                    mask_color=mask_color,
+                #                    txt_color=text_color
+                #                    )
 
                 if is_inside_mask(bottom[0], bottom[1], mask_bin):
                     lane_id = get_lane_index((bottom[0], bottom[1], 1), lane_lines)
@@ -227,14 +240,119 @@ class VideoProcessor:
                     frame_features = self.get_frame_features(x1, y1, x2, y2, rotated_rect, mask_points, frame_num, bottom)
                     tracks_info[track_id]["fdata"].append(frame_features)
 
+                    tracks_info[track_id]['real_speed'] = '71.11'
+                    tracks_info[track_id]['speed'] = '-'
+
+                    # annotator.box_label([x1, y1, x2, y2],
+                    #                    label=f"Carril {lane_id}, ID {track_id}",
+                    #                    color=bbox_color,
+                    #                    txt_color=text_color
+                    #                    )
                     annotator.seg_bbox(mask=mask_points,
                                        label=f"Carril {lane_id}, ID {track_id}",
                                        mask_color=mask_color,
                                        txt_color=text_color
                                        )
-                    draw_detection(frame, x1, y1, x2, y2, lane_id, track_id)
-                    draw_instance(frame, rotated_rect)
+                # elif track_id in tracks_info and 'speed' in tracks_info[track_id]:
+                #     tracks_info[track_id]['speed'] = '69.93'
+                #     annotator.seg_bbox(mask=mask_points,
+                #                        label=f"Real {tracks_info[track_id]['real_speed']}, Pred. {tracks_info[track_id]['speed']} km/h",
+                #                        mask_color=mask_color,
+                #                        txt_color=text_color
+                #                        )
+
+
+                    # draw_detection(frame, x1, y1, x2, y2, lane_id, track_id)
+                    # draw_instance(frame, rotated_rect)
                     draw_bottom(frame, bottom)
+
+                    # overlay = frame.copy()
+                    # # Usa un color específico para el relleno o uno basado en track_id
+                    # # current_fill_color = colors(int(track_id % 10), True) # Ejemplo de color por track_id
+                    # current_fill_color = (int(mask_color[0]), int(mask_color[1]),
+                    #                       int(mask_color[2]))  # Usar el mask_color global
+                    # cv2.fillPoly(overlay, [mask_points.astype(np.int32)], current_fill_color)
+                    # opacity = 0.3  # Ajusta la opacidad
+                    # cv2.addWeighted(overlay, opacity, frame, 1 - opacity, 0, frame)
+
+                    # # --- Inicio: Dibujar cruz de orientación estilizada ---
+                    # (center_x, center_y), (rect_width, rect_height), angle_degrees = rotated_rect
+                    # center_x, center_y = float(center_x), float(center_y)
+                    #
+                    # angle_rad = np.deg2rad(angle_degrees)
+                    # cos_a = np.cos(angle_rad)
+                    # sin_a = np.sin(angle_rad)
+                    #
+                    # axis_scale_factor = 0.4
+                    # arrow_length = (2*rect_width/3) * axis_scale_factor
+                    # perp_line_segment_length = (rect_height / 2.0) * axis_scale_factor
+                    #
+                    # # --- Eje principal (con flecha estilizada) ---
+                    # # Punto de inicio de la flecha (centro del objeto)
+                    # arrow_start_x = int(center_x)
+                    # arrow_start_y = int(center_y)
+                    #
+                    # # Punto final de la flecha (punta)
+                    # arrow_tip_x = int(center_x + arrow_length * cos_a)
+                    # arrow_tip_y = int(center_y + arrow_length * sin_a)
+                    #
+                    # # Dibujar el cuerpo principal de la flecha
+                    # cv2.line(frame,
+                    #          (arrow_start_x, arrow_start_y),
+                    #          (arrow_tip_x, arrow_tip_y),
+                    #          crosshair_color, thickness=4)
+                    #
+                    # # Parámetros para la cabeza de la flecha (ajusta estos valores para el estilo deseado)
+                    # head_wing_length_ratio = 0.35  # Longitud de las alas de la punta como fracción de arrow_length
+                    # head_wing_angle_deg = 30  # Ángulo de cada ala con respecto al eje de la flecha
+                    #
+                    # actual_head_wing_length = arrow_length * head_wing_length_ratio
+                    # head_wing_angle_rad = np.deg2rad(head_wing_angle_deg)
+                    #
+                    # # Calcular y dibujar las alas de la cabeza de la flecha
+                    # # Ala 1
+                    # # El ángulo del ala es el ángulo de la flecha (angle_rad) + pi (para ir hacia atrás) - el ángulo del ala
+                    # angle_w1 = angle_rad + np.pi - head_wing_angle_rad
+                    # wing1_x = arrow_tip_x + actual_head_wing_length * np.cos(angle_w1)
+                    # wing1_y = arrow_tip_y + actual_head_wing_length * np.sin(angle_w1)
+                    # cv2.line(frame,
+                    #          (arrow_tip_x, arrow_tip_y),  # Desde la punta de la flecha
+                    #          (int(wing1_x), int(wing1_y)),
+                    #          crosshair_color, thickness=4)
+                    #
+                    # # Ala 2
+                    # # El ángulo del ala es el ángulo de la flecha (angle_rad) + pi (para ir hacia atrás) + el ángulo del ala
+                    # angle_w2 = angle_rad + np.pi + head_wing_angle_rad
+                    # wing2_x = arrow_tip_x + actual_head_wing_length * np.cos(angle_w2)
+                    # wing2_y = arrow_tip_y + actual_head_wing_length * np.sin(angle_w2)
+                    # cv2.line(frame,
+                    #          (arrow_tip_x, arrow_tip_y),  # Desde la punta de la flecha
+                    #          (int(wing2_x), int(wing2_y)),
+                    #          crosshair_color, thickness=4)
+                    # # --- Fin Eje principal ---
+                    # # --- Fin: Dibujar cruz de orientación estilizada ---
+
+            # if i == 167:
+            #     cv2.imwrite("ims/brno_info_road.png", frame)
+            #     break
+            # if i == 7086:
+            #     cv2.imwrite("ims/yolo_track.png", frame)
+            #     break
+            # if i == 208:
+            #     # pass
+            #     # cv2.imwrite('ims/yolo_bbox.png', frame)
+            #     # cv2.imwrite('ims/yolo_mask.png', frame)
+            #     # cv2.imwrite('ims/yolo_area.png', frame)
+            #     # cv2.imwrite('ims/yolo_angle.png', frame)
+            #     # cv2.imwrite('ims/yolo_rotated.png', frame)
+            #     break
+            # if i == 208:
+            #     cv2.imwrite('ims/yolo_mask_cross.png', frame)
+            #     break
+            # if i == 2810:
+            #     break
+            if i == 2820:
+                break
 
             if not self.show_frame(frame):
                 break
