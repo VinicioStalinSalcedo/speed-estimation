@@ -1,6 +1,52 @@
-# speed-estimation
+# Estimación de velocidad de vehículos con deep learning
 
-Proyecto para la estimación de velocidad de vehículos usando modelos LSTM y PyTorch Lightning sobre el dataset BrnoCompSpeed.
+> **English summary.** Vehicle speed estimation from monocular traffic video, with no camera calibration. YOLO11-seg detects, segments and tracks each vehicle; 26 features per frame feed an LSTM (PyTorch Lightning) that regresses its speed. On 18,577 vehicles from the BrnoCompSpeed benchmark it reaches **MAE 1.66 km/h** and **RMSE 3.50 km/h** on a held-out test set. Master's thesis in Artificial Intelligence, Universidad San Francisco de Quito (2025).
+
+Tesis de la Maestría en Inteligencia Artificial de la Universidad San Francisco de Quito (USFQ, 2025). Autores: Vinicio Salcedo y Ramiro Sandoval.
+
+## Problema
+
+Medir la velocidad de un vehículo con una sola cámara suele exigir sensores dedicados o una calibración 3D de la cámara, difícil de escalar. Este proyecto estima la velocidad solo a partir de características 2D del video: el modelo aprende la dinámica del movimiento sin calibrar la cámara.
+
+## Cómo funciona
+
+```mermaid
+flowchart LR
+    A["Video monocular"] --> B["YOLO11-seg + tracking"]
+    B --> C["26 características<br/>por cuadro y vehículo"]
+    C --> D["Secuencia de la trayectoria<br/>(padding + packing)"]
+    D --> E["LSTM<br/>3 capas × 128"]
+    E --> F["Velocidad (km/h)"]
+```
+
+1. **Procesamiento de video.** Cada video se procesa con el modelo preentrenado `yolo11-seg.pt`. El tracker asocia cajas y máscaras de cada vehículo y se extraen 26 características por cuadro.
+2. **Secuencias.** La trayectoria completa de cada vehículo forma una secuencia de longitud variable, que se rellena y empaqueta.
+3. **Estimación.** Una LSTM de 3 capas ocultas de 128 unidades, con regularización y early stopping, estima la velocidad.
+
+## Resultados
+
+Los hiperparámetros se eligieron con validación cruzada de 5 pliegues y búsqueda con Optuna. El modelo final se entrenó con el 80 % de los datos y se evaluó en el 20 % restante.
+
+| Métrica | Valor |
+|---|---|
+| MAE | 1,66 km/h |
+| RMSE | 3,50 km/h |
+| Exactitud relativa | 97,88 % |
+| Vehículos evaluados | 18.577 (el 89,03 % del dataset que se logró emparejar con la verdad de campo) |
+
+## Datos
+
+[BrnoCompSpeed](https://github.com/JakubSochor/BrnoCompSpeed) (Sochor et al., 2018) tiene 18 videos de alta resolución con velocidades medidas. El dataset no se incluye en este repositorio: se solicita a sus autores.
+
+## Flujo de trabajo
+
+Dependencias principales: PyTorch, PyTorch Lightning, torchmetrics, Ultralytics (YOLO), OpenCV, Optuna, scikit-learn, NumPy y pandas.
+
+1. Configura las rutas del dataset y de resultados en `src/dataset/dataset_info.py`.
+2. `src/video_process.py` procesa los videos y guarda las características de cada detección.
+3. `src/search_fold.py` busca hiperparámetros con validación cruzada.
+4. `src/train.py` entrena el modelo final.
+5. `src/evaluation/results.ipynb` genera tablas y gráficas de resultados.
 
 ## Estructura del proyecto
 ````
